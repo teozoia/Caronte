@@ -25,3 +25,4 @@ typedef struct _CARONTE_MESSAGE {
 	CARONTE_RECORD CaronteRecord;
 
 } CARONTE_MESSAGE, * PCARONTE_MESSAGE;
+

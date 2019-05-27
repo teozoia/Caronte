@@ -45,23 +45,6 @@ typedef struct _VOLUME_CONTEXT {
 #define MIN_SECTOR_SIZE 0x200
 
 
-//  This is a context structure that is used to pass state from our
-//  pre-operation callback to our post-operation callback.
-typedef struct _PRE_2_POST_CONTEXT {
-
-	//  Pointer to our volume context structure.  We always get the context
-	//  in the preOperation path because you can not safely get it at DPC
-	//  level.  We then release it in the postOperation path.  It is safe
-	//  to release contexts at DPC level.
-	PVOLUME_CONTEXT VolCtx;
-
-	//  Since the post-operation parameters always receive the "original"
-	//  parameters passed to the operation, we need to pass our new destination
-	//  buffer to our post operation routine so we can free it.
-	PVOID SwappedBuffer;
-
-} PRE_2_POST_CONTEXT, * PPRE_2_POST_CONTEXT;
-
 //  This is a lookAside list used to allocate our pre-2-post structure.
 NPAGED_LOOKASIDE_LIST Pre2PostContextList;
 
@@ -76,6 +59,15 @@ typedef NTSTATUS(*ZWQUERYINFORMATIONPROCESS)
 /*************************************************************************
 	Prototypes
 *************************************************************************/
+
+NTSTATUS
+CaronteConnect(
+	PFLT_PORT clientport,
+	PVOID serverportcookie,
+	PVOID context,
+	ULONG size,
+	PVOID connectioncookie
+);
 
 NTSTATUS
 InstanceSetup(
@@ -116,6 +108,14 @@ PreWrite(
 	_Flt_CompletionContext_Outptr_ PVOID* CompletionContext
 );
 
+FLT_POSTOP_CALLBACK_STATUS
+PostWrite(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+);
+
 NTSTATUS
 GetFileSize(
 	_In_    PFLT_INSTANCE Instance,
@@ -140,7 +140,7 @@ CONST FLT_OPERATION_REGISTRATION Callbacks[] = {
 	{ IRP_MJ_WRITE,
 	  0,
 	  PreWrite,
-	  NULL },
+	  PostWrite },
 
 	{ IRP_MJ_OPERATION_END }
 };
@@ -184,6 +184,7 @@ CONST FLT_REGISTRATION FilterRegistration = {
 
 NTSTATUS CaronteConnect(PFLT_PORT clientport, PVOID serverportcookie, PVOID context, ULONG size, PVOID connectioncookie) {
 
+	//size;
 	ClientPort = clientport;
 	Cookie = connectioncookie;
 	KdPrint(("[Caronte][INFO] - Caronte connected. \n"));
@@ -406,7 +407,7 @@ NTSTATUS DriverEntry(
 		NULL,
 		NULL,
 		0,
-		sizeof(PRE_2_POST_CONTEXT),
+		sizeof(CARONTE_RECORD),
 		PRE_2_POST_TAG,
 		0);
 
@@ -522,7 +523,7 @@ Return Value:
 	PVOID newBuf = NULL;
 	PMDL newMdl = NULL;
 	PVOLUME_CONTEXT volCtx = NULL;
-	PPRE_2_POST_CONTEXT p2pCtx;
+	PCARONTE_RECORD p2pCtx;
 	PVOID origBuf;
 	NTSTATUS status;
 	ULONG writeLen = iopb->Parameters.Write.Length;
@@ -696,11 +697,20 @@ Return Value:
 			else
 				RtlCopyMemory(record.WriteBuffer, origBuf, 1000000);
 
-
-			status = FltSendMessage(gFilterHandle, &ClientPort, &record, sizeof(CARONTE_RECORD), NULL, NULL, NULL);
-			KernPrint("[Caronte][INFO] - (%lu), %ws \n", RecordID, record.FilePath);
+			//  We are ready to swap buffers, get a pre2Post context structure.
+			//  We need it to pass the volume context and the allocate memory
+			//  buffer to the post operation callback.
+			p2pCtx = ExAllocateFromNPagedLookasideList(&Pre2PostContextList);
+			if (p2pCtx == NULL) {
+				KernPrint("[Caronte][ERR] - %wZ Failed to allocate pre2Post context structure\n",&volCtx->Name);
+				leave;
+			}
+			else {
+				RtlCopyMemory(p2pCtx, &record, sizeof(CARONTE_RECORD));
+			}
 
 			RecordID++;
+			*CompletionContext = p2pCtx;
 
 		} except(EXCEPTION_EXECUTE_HANDLER) {
 			KernPrint("[Caronte][ERR] - Can't send message to user-space Virgilio\n");
@@ -708,7 +718,7 @@ Return Value:
 		}
 
 		//  Return we want a post-operation callback
-		retValue = FLT_PREOP_SUCCESS_NO_CALLBACK;
+		retValue = FLT_PREOP_SUCCESS_WITH_CALLBACK;
 
 	}finally{
 
@@ -728,6 +738,39 @@ Return Value:
 	}
 
 	return retValue;
+}
+
+FLT_POSTOP_CALLBACK_STATUS PostWrite(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+){
+	PCARONTE_RECORD p2pCtx = CompletionContext;
+	NTSTATUS status;
+
+	UNREFERENCED_PARAMETER(FltObjects);
+	UNREFERENCED_PARAMETER(Flags);
+
+	KernPrint("[Caronte][INFO] - PostWrite");
+
+	KernPrint("[Caronte][INFO] - (%lu) %ws \n", RecordID, p2pCtx->FilePath);
+	status = FltSendMessage(gFilterHandle, &ClientPort, p2pCtx, sizeof(CARONTE_RECORD), NULL, NULL, NULL);
+	//Here we need a wait state for reply before free the memory
+	ExFreeToNPagedLookasideList(&Pre2PostContextList, p2pCtx);
+
+	/*
+	LOG_PRINT(LOGFL_WRITE,
+		("[Caronte][INFO] - %wZ newB=%p info=%Iu Freeing\n",
+			&p2pCtx->VolCtx->Name,
+			p2pCtx->SwappedBuffer,
+			Data->IoStatus.Information));
+			*/
+	//  Free allocate POOL and volume context
+	//FltFreePoolAlignedWithTag(FltObjects->Instance,p2pCtx->SwappedBuffer,BUFFER_SWAP_TAG);
+	//FltReleaseContext(p2pCtx->VolCtx);
+
+	return FLT_POSTOP_FINISHED_PROCESSING;
 }
 
 

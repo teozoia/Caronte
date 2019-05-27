@@ -27,7 +27,6 @@ int main(void) {
 	record = (CARONTE_RECORD*)malloc(sizeof(CARONTE_RECORD));
 	message = (CARONTE_MESSAGE*)malloc(sizeof(CARONTE_MESSAGE));
 
-
 	while (1) {
 
 		printf("State: %d \n", state);
@@ -72,6 +71,7 @@ int main(void) {
 					record->ThreadId,
 					record->ProcessId,
 					record->WriteLen);
+
 				break;
 
 		}
