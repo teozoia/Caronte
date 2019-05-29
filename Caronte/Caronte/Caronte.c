@@ -116,6 +116,14 @@ PostWrite(
 	_In_ FLT_POST_OPERATION_FLAGS Flags
 );
 
+FLT_POSTOP_CALLBACK_STATUS
+PostWriteWhenSafe(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+);
+
 NTSTATUS
 GetFileSize(
 	_In_    PFLT_INSTANCE Instance,
@@ -700,6 +708,7 @@ Return Value:
 			//  We are ready to swap buffers, get a pre2Post context structure.
 			//  We need it to pass the volume context and the allocate memory
 			//  buffer to the post operation callback.
+			KernPrint("[Caronte][INFO] - Before allocation list\n");
 			p2pCtx = ExAllocateFromNPagedLookasideList(&Pre2PostContextList);
 			if (p2pCtx == NULL) {
 				KernPrint("[Caronte][ERR] - %wZ Failed to allocate pre2Post context structure\n",&volCtx->Name);
@@ -748,27 +757,49 @@ FLT_POSTOP_CALLBACK_STATUS PostWrite(
 ){
 	PCARONTE_RECORD p2pCtx = CompletionContext;
 	NTSTATUS status;
+	FLT_POSTOP_CALLBACK_STATUS retVal;
 
 	UNREFERENCED_PARAMETER(FltObjects);
 	UNREFERENCED_PARAMETER(Flags);
 
-	KernPrint("[Caronte][INFO] - PostWrite");
-
-	KernPrint("[Caronte][INFO] - (%lu) %ws \n", RecordID, p2pCtx->FilePath);
-	status = FltSendMessage(gFilterHandle, &ClientPort, p2pCtx, sizeof(CARONTE_RECORD), NULL, NULL, NULL);
-	//Here we need a wait state for reply before free the memory
+	if (FltDoCompletionProcessingWhenSafe(Data, FltObjects, CompletionContext, Flags, PostWriteWhenSafe, &retVal)) {
+		KernPrint("[Caronte][INFO] - Safe op OK \n");
+	}
+	else {
+		KernPrint("[Caronte][ERR] - Safe op FAIL! \n");
+	}
+	
 	ExFreeToNPagedLookasideList(&Pre2PostContextList, p2pCtx);
 
-	/*
-	LOG_PRINT(LOGFL_WRITE,
-		("[Caronte][INFO] - %wZ newB=%p info=%Iu Freeing\n",
-			&p2pCtx->VolCtx->Name,
-			p2pCtx->SwappedBuffer,
-			Data->IoStatus.Information));
-			*/
-	//  Free allocate POOL and volume context
-	//FltFreePoolAlignedWithTag(FltObjects->Instance,p2pCtx->SwappedBuffer,BUFFER_SWAP_TAG);
-	//FltReleaseContext(p2pCtx->VolCtx);
+	return retVal;
+}
+
+FLT_POSTOP_CALLBACK_STATUS
+PostWriteWhenSafe(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+){
+
+	PFLT_IO_PARAMETER_BLOCK iopb = Data->Iopb;
+	PCARONTE_RECORD p2pCtx = CompletionContext;
+	PVOID origBuf;
+	NTSTATUS status;
+	LARGE_INTEGER time;
+	ULONGLONG FileSize;
+
+	UNREFERENCED_PARAMETER(FltObjects);
+	UNREFERENCED_PARAMETER(Flags);
+
+	status = GetFileSize(FltObjects->Instance, FltObjects->FileObject, &FileSize);
+	KeQuerySystemTime(&time);
+
+	p2pCtx->CompletionTime = time.QuadPart;
+	p2pCtx->CompletionFileSize = FileSize;
+
+	status = FltSendMessage(gFilterHandle, &ClientPort, p2pCtx, sizeof(CARONTE_RECORD), NULL, NULL, NULL);
+	KernPrint("[Caronte][INFO] - sendmessagestatus %x \n", status);
 
 	return FLT_POSTOP_FINISHED_PROCESSING;
 }

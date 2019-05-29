@@ -20,12 +20,14 @@ int main(void) {
 	//DWORD dataSize = 1001072 + sizeof(FILTER_MESSAGE_HEADER); // 1MB + Header
 	CARONTE_RECORD *record;
 	PCARONTE_MESSAGE message;
+	PCARONTE_REPLY reply;
 
 	printf("----- Virgilio ----- \n");
 
 	//rawBuffer = (void *)malloc(dataSize);
 	record = (CARONTE_RECORD*)malloc(sizeof(CARONTE_RECORD));
 	message = (CARONTE_MESSAGE*)malloc(sizeof(CARONTE_MESSAGE));
+	reply = (CARONTE_REPLY*)malloc(sizeof(FILTER_REPLY_HEADER) + sizeof(CARONTE_STATUS));
 
 	while (1) {
 
@@ -52,11 +54,17 @@ int main(void) {
 				break;
 
 			case 2:
-				// Waiting for Caronte stream
+				// Waiting for Caronte stream 801f0020
 				printf("Waiting for msg \n");
 				result = FilterGetMessage(portHandle, &message->MessageHeader, sizeof(CARONTE_MESSAGE), NULL);
 				printf("Message recived:0x%08x \n", result);
+
 				RtlCopyMemory(record, &message->CaronteRecord, sizeof(CARONTE_RECORD));
+				//reply->Reply.Status = 1L;
+
+				//result = FilterReplyMessage(portHandle, &reply->Header, sizeof(FILTER_REPLY_HEADER) + sizeof(CARONTE_STATUS));
+				//printf("Result: %x \n",result);
+
 				printf("ID \t Start \t End \t Kernel \t Operation \t Volume \t Path \t Size \t Final size \t TID \t PID \t Length \n");
 				printf("---\t-------\t-----\t--------\t-----------\t--------\t------\t------\t------------\t-----\t-----\t--------\n");
 				printf("%lu\t %llu \t %llu \t %d \t %x \t   \t %ws \t %lu \t %lu \t %llu \t %llu \t %lu",
