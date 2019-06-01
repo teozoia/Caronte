@@ -11,6 +11,7 @@
 *.db
 *.suo
 *.ipch
+/Host/settings.conf
 
 */.vs/
 
