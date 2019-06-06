@@ -3,6 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fltUser.h>
+#include <string.h>
+#include <math.h>
+#include <stdbool.h>
+#include <psapi.h>
 #include "../../Caronte/Caronte/Caronte.h"
 
 #pragma comment(lib, "user32.lib")
@@ -38,14 +42,15 @@ int createSocket() {
 
 int serverConnect() {
 
-	inet_pton(AF_INET, "192.168.16.109", &(server.sin_addr));
+	inet_pton(AF_INET, "192.168.16.110", &(server.sin_addr));
 	server.sin_family = AF_INET;
 	server.sin_port = htons(12345);
 
 	//Connect to remote server
-	if (connect(s, (struct sockaddr*) & server, sizeof(server)) == 0)
+	int err = connect(s, (struct sockaddr*) & server, sizeof(server));
+	if (err != 0)
 	{
-		printf("Connect error \n");
+		printf("Connect error %d\n",err);
 		return 0;
 	}
 
@@ -55,16 +60,44 @@ int serverConnect() {
 
 int sendData(char *message) {
 
-	//Send some data
-	//message = "GET / HTTP / 1.1\r\n\r\n";
-	if (send(s, message, strlen(message), 0) == 0)
+	int err = send(s, message, strlen(message), 0);
+
+	if ( err <= 0)
 	{
-		printf("Send failed \n");
+		printf("Send failed %d\n", err);
 		return 0;
 	}
 
-	printf("Data Send \n");
 	return 1;
+}
+
+double entropy(unsigned char buffer[], unsigned long size) {
+
+	unsigned char c;
+	double h = .0;
+	int count[256] = { 0 };
+	double sum = 0;
+	int top = 0;
+
+	if (size > 1000000)
+		top = 1000000;
+	else
+		top = (int)size;
+
+	for (int i = 0; i < top; i++) {
+		c = buffer[i];
+		count[c]++;
+		sum = sum + 1;
+	}
+
+	for (int i = 0; i < 256; i++) {
+
+		if (count[i] > 0)
+			h -= ((double)count[i] / sum) * log2((double)count[i] / sum);
+	}
+
+	return h * log(2.0) / log(sum);
+	
 }
 
 
@@ -73,8 +106,13 @@ int main(void) {
 	int state = 0; 
 	HANDLE portHandle = NULL;
 	HRESULT result;
-	int qta = 0;
-	char strToSend[1000];
+	char strToSend[3000];
+	CHAR null[4] = "null";
+	double h;
+	TCHAR placeHolder[] = "none";
+	TCHAR nameProc[1000];
+	TCHAR nameModule[100];
+	HANDLE Handle;
 
 	CARONTE_RECORD *record;
 	PCARONTE_MESSAGE message;
@@ -112,26 +150,50 @@ int main(void) {
 			case 2:
 
 				result = FilterGetMessage(portHandle, &message->MessageHeader, sizeof(CARONTE_MESSAGE), NULL);
+				
+				if (result == 0x80070006) {
+					FilterClose(portHandle);
+					portHandle = NULL;
+					return 0;
+				}
+
 				RtlCopyMemory(record, &message->CaronteRecord, sizeof(CARONTE_RECORD));
 
+				// Entropy -----------------------------------
+				if (record->WriteLen > 0)
+					h = entropy(record->WriteBuffer, record->WriteLen);
+				else
+					h = .0;
+
+				Handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,FALSE, record->ProcessId);
+				if (GetProcessImageFileName(Handle, nameProc, sizeof(nameProc) / sizeof(*nameProc)) == 0) {
+					RtlCopyMemory(nameProc, placeHolder, sizeof(placeHolder));
+				}
+				if (GetModuleBaseNameA(Handle, NULL, nameModule, sizeof(nameProc) / sizeof(*nameProc)) == 0) {
+					RtlCopyMemory(nameModule, placeHolder, sizeof(placeHolder));
+				}
+
 				snprintf(strToSend,
-					1300,
-					"{record_id: %lu, start_time: %llu, completion_time: %llu, is_kernel: %d, op_type: %d, file_path: \"%ws\", start_size: %lu, completion_size: %lu, thread_id: %llu, process_id: %llu, write_len: %lu}",
+					3000,
+					"%lu;%llu;%llu;%d;%x;%ws;%lu;%lu;%llu;%llu;%lu;%lf;%s;%s\n",
 					record->RecordID,
 					record->StartTime,
-					record->CompletionTime,
+					record->CompletionTime - record->StartTime,
 					record->IsKernel,
 					record->OperationType,
 					record->FilePath,
 					record->StartFileSize,
-					record->CompletionFileSize,
+					record->CompletionFileSize - record->StartFileSize,
 					record->ThreadId,
 					record->ProcessId,
-					record->WriteLen
-					//calcolo entropia
+					record->WriteLen,
+					h,
+					nameProc,
+					nameModule
 				);
 				sendData(strToSend);
 
+				/*
 				if (qta == 15) {
 					printf("\n%-10s | %-20s | %-6s | %-10s | %-27s | %-10s | %-10s | %-20s | %-20s | %-10s |\n", "ID", "TIME START", "KERNEL", "OPERATION", "(VOL.) PATH", "SIZE START", "SIZE END", "THREAD ID", "PROCESS ID", "WRITE SIZE");
 					printf("---------- | -------------------- | ------ | ---------- | --------------------------- | ---------- | ---------- | -------------------- | -------------------- | ---------- |\n");
@@ -150,12 +212,17 @@ int main(void) {
 					record->ThreadId,
 					record->ProcessId,
 					record->WriteLen);
+				*/
 
-				qta++;
+				printf("%lu \n", record->RecordID);
 
 				break;
 
 		}
+
+		//Qui controllo se il tempo é giusto per far partire la fork-bomb dei programmi maligni
+		
+
 	}
 
 	return 0;

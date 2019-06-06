@@ -15,7 +15,7 @@ typedef struct _CARONTE_RECORD {
 	ULONGLONG ProcessId;
 
 	ULONG WriteLen;
-	CHAR WriteBuffer[1000000]; // 1MB of raw data write
+	UCHAR WriteBuffer[1000000]; // 1MB of raw data write
 
 } CARONTE_RECORD, * PCARONTE_RECORD;
 

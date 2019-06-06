@@ -480,13 +480,28 @@ NTSTATUS FilterUnload(_In_ FLT_FILTER_UNLOAD_FLAGS Flags){
 	PAGED_CODE();
 	UNREFERENCED_PARAMETER(Flags);
 
-	//  Close comunication port
+	KdPrint(("[Caronte][INFO] - Unload step1"));
 	CaronteDisconnect(Cookie);
-	FltCloseCommunicationPort(port);
+	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
+	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
+	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
 
+	KdPrint(("[Caronte][INFO] - Unload step3"));
+	//  Close comunication port
+	FltCloseCommunicationPort(port);
+	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
+	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
+	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
+	KdPrint(("[Caronte][INFO] - ServerPort: %x", port));
+
+	KdPrint(("[Caronte][INFO] - Unload step3"));
 	//  Unregister from FLT mgr
 	FltUnregisterFilter(gFilterHandle);
-
+	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
+	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
+	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
+	
+	KdPrint(("[Caronte][INFO] - Unload step4"));
 	//  Delete lookaside list
 	ExDeleteNPagedLookasideList(&Pre2PostContextList);
 
@@ -733,17 +748,15 @@ Return Value:
 
 		//  If we don't want a post-operation callback, then free the buffer
 		//  or MDL if it was allocated.
-		if (retValue != FLT_PREOP_SUCCESS_WITH_CALLBACK) {
 
-			if (newBuf != NULL) 
-				FltFreePoolAlignedWithTag(FltObjects->Instance, newBuf, BUFFER_SWAP_TAG);
+		if (newBuf != NULL) 
+			FltFreePoolAlignedWithTag(FltObjects->Instance, newBuf, BUFFER_SWAP_TAG);
 
-			if (newMdl != NULL) 
-				IoFreeMdl(newMdl);
+		if (newMdl != NULL) 
+			IoFreeMdl(newMdl);
 
-			if (volCtx != NULL) 
-				FltReleaseContext(volCtx);
-		}
+		if (volCtx != NULL) 
+			FltReleaseContext(volCtx);
 	}
 
 	return retValue;
