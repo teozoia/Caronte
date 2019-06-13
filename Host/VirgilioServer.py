@@ -17,7 +17,7 @@ time = strftime("%Y%m%d_%H%M%S", gmtime());
 name = "data/caronte_" + time + ".csv"
 
 f = open(name, "a")
-f.write("id;time_start;elapsed_time;kernel;operation;path;size_start;size_gain;thread;process;write_size;entropy;exec_path;exec\n");
+f.write("id;time_start;elapsed_time;kernel;operation;path;size_start;size_gain;thread;process;write_size;entropy;exec_path;exec;gt\n");
 f.close()
 
 # Add record to db

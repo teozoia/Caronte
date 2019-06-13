@@ -17,6 +17,7 @@
 WSADATA wsa;
 SOCKET s;
 struct sockaddr_in server;
+boolean spawned = false;
 
 int createSocket() {
 
@@ -113,6 +114,10 @@ int main(void) {
 	TCHAR nameProc[1000];
 	TCHAR nameModule[100];
 	HANDLE Handle;
+	int count = 0;
+	ULONGLONG maliciousProcess = -1;
+	ULONGLONG maliciousThread = -1;
+	int gt = 0;
 
 	CARONTE_RECORD *record;
 	PCARONTE_MESSAGE message;
@@ -173,9 +178,14 @@ int main(void) {
 					RtlCopyMemory(nameModule, placeHolder, sizeof(placeHolder));
 				}
 
+				if (maliciousProcess == record->ProcessId || maliciousThread == record->ThreadId)
+					gt = 1;
+				else
+					gt = 0;
+
 				snprintf(strToSend,
 					3000,
-					"%lu;%llu;%llu;%d;%x;%ws;%lu;%lu;%llu;%llu;%lu;%lf;%s;%s\n",
+					"%lu;%llu;%llu;%d;%x;%ws;%lu;%lu;%llu;%llu;%lu;%lf;%s;%s;%d\n",
 					record->RecordID,
 					record->StartTime,
 					record->CompletionTime - record->StartTime,
@@ -189,9 +199,12 @@ int main(void) {
 					record->WriteLen,
 					h,
 					nameProc,
-					nameModule
+					nameModule,
+					gt
 				);
 				sendData(strToSend);
+
+				count++;
 
 				/*
 				if (qta == 15) {
@@ -221,7 +234,33 @@ int main(void) {
 		}
 
 		//Qui controllo se il tempo é giusto per far partire la fork-bomb dei programmi maligni
-		
+		//C:\Users\win-test\Desktop\Wannacry
+		if (!spawned && count > 10000) {
+
+			STARTUPINFO info = { sizeof(info) };
+			PROCESS_INFORMATION processInfo;
+			spawned = true;
+
+			if (CreateProcess("C:\\Users\\win-test\\Desktop\\Ransomware\\Ransomware.exe", NULL, NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
+
+				printf("############ RANSOMWARE SPAWNED ############\n");
+				printf("# C:\Users\win-test\Desktop\Wannacry \n");
+				printf("# ProcessId=%d ThreadId=%d\n", processInfo.dwProcessId, processInfo.dwThreadId);
+				printf("############################################\n");
+
+				maliciousProcess = processInfo.dwProcessId;
+				maliciousThread = processInfo.dwThreadId;
+			}
+			else {
+				printf("############ SPAWNED FAIL ############\n");
+				printf("# +---  +---+  |  |    \n");
+				printf("# |--   |   |  |  |    \n");
+				printf("# |     |---|  |  |    \n");
+				printf("# |     |   |  |  |___ \n");
+				printf("######################################\n");
+			}
+
+		}
 
 	}
 

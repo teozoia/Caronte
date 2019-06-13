@@ -480,32 +480,18 @@ NTSTATUS FilterUnload(_In_ FLT_FILTER_UNLOAD_FLAGS Flags){
 	PAGED_CODE();
 	UNREFERENCED_PARAMETER(Flags);
 
-	KdPrint(("[Caronte][INFO] - Unload step1"));
 	CaronteDisconnect(Cookie);
-	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
-	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
-	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
 
-	KdPrint(("[Caronte][INFO] - Unload step3"));
 	//  Close comunication port
 	FltCloseCommunicationPort(port);
-	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
-	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
-	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
-	KdPrint(("[Caronte][INFO] - ServerPort: %x", port));
 
-	KdPrint(("[Caronte][INFO] - Unload step3"));
 	//  Unregister from FLT mgr
 	FltUnregisterFilter(gFilterHandle);
-	KdPrint(("[Caronte][INFO] - cliwentport: %x", ClientPort));
-	KdPrint(("[Caronte][INFO] - gFilterHandle: %x", gFilterHandle));
-	KdPrint(("[Caronte][INFO] - Cookie: %x", Cookie));
 	
-	KdPrint(("[Caronte][INFO] - Unload step4"));
 	//  Delete lookaside list
 	ExDeleteNPagedLookasideList(&Pre2PostContextList);
 
-	KdPrint(("[Caronte][INFO] - Unload driver."));
+	KdPrint(("[Caronte][INFO] - Unloaded driver."));
 
 	return STATUS_SUCCESS;
 }

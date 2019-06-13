@@ -12,7 +12,7 @@
 *.suo
 *.ipch
 /Host/settings.conf
-/Host/data/
+Appunti.md
 
 */.vs/
 
