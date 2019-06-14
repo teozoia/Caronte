@@ -18,6 +18,8 @@ WSADATA wsa;
 SOCKET s;
 struct sockaddr_in server;
 boolean spawned = false;
+char addrxyz[] = "192.168.16X.110";
+int portxyz = 0;
 
 int createSocket() {
 
@@ -43,9 +45,9 @@ int createSocket() {
 
 int serverConnect() {
 
-	inet_pton(AF_INET, "192.168.16.110", &(server.sin_addr));
+	inet_pton(AF_INET, addrxyz, &(server.sin_addr));
 	server.sin_family = AF_INET;
-	server.sin_port = htons(12345);
+	server.sin_port = htons(portxyz);
 
 	//Connect to remote server
 	int err = connect(s, (struct sockaddr*) & server, sizeof(server));
@@ -102,7 +104,7 @@ double entropy(unsigned char buffer[], unsigned long size) {
 }
 
 
-int main(void) {
+int main(int argc, char *argv[]) {
 
 	int state = 0; 
 	HANDLE portHandle = NULL;
@@ -123,6 +125,14 @@ int main(void) {
 	PCARONTE_MESSAGE message;
 
 	printf("----- Virgilio ----- \n");
+
+	if (argc < 3) {
+		printf("usage: Virgilio.exe <ip_addr> <port>");
+		return 0;
+	}
+	
+	RtlCopyMemory(addrxyz, argv[1], strlen(addrxyz));
+	portxyz = atoi(argv[2]);
 
 	record = (CARONTE_RECORD*)malloc(sizeof(CARONTE_RECORD));
 	message = (CARONTE_MESSAGE*)malloc(sizeof(CARONTE_MESSAGE));
