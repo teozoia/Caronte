@@ -216,58 +216,29 @@ int main(int argc, char *argv[]) {
 
 				count++;
 
-				/*
-				if (qta == 15) {
-					printf("\n%-10s | %-20s | %-6s | %-10s | %-27s | %-10s | %-10s | %-20s | %-20s | %-10s |\n", "ID", "TIME START", "KERNEL", "OPERATION", "(VOL.) PATH", "SIZE START", "SIZE END", "THREAD ID", "PROCESS ID", "WRITE SIZE");
-					printf("---------- | -------------------- | ------ | ---------- | --------------------------- | ---------- | ---------- | -------------------- | -------------------- | ---------- |\n");
-					qta = 0;
-				}
-				
-				printf("%010lu | %020llu | %06d | 0x%08x | (    ) %.20ws | %010lu | %010lu | %020llu | %020llu | %010lu |\n",
-					record->RecordID,
-					record->StartTime,
-					//record->CompletionTime,
-					record->IsKernel,
-					record->OperationType,
-					record->FilePath,
-					record->StartFileSize,
-					record->CompletionFileSize,
-					record->ThreadId,
-					record->ProcessId,
-					record->WriteLen);
-				*/
-
 				printf("%lu \n", record->RecordID);
 
 				break;
 
 		}
 
-		//Qui controllo se il tempo é giusto per far partire la fork-bomb dei programmi maligni
-		//C:\Users\win-test\Desktop\Wannacry
-		if (!spawned && count > 10000) {
+		//Fork malware
+		if (!spawned && count > 100) {
 
 			STARTUPINFO info = { sizeof(info) };
 			PROCESS_INFORMATION processInfo;
 			spawned = true;
 
-			if (CreateProcess("C:\\Users\\win-test\\Desktop\\Ransomware\\Ransomware.exe", NULL, NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
+			if (CreateProcess("C:\\Users\\win-test\\Desktop\\start\\target.exe", NULL, NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
 
 				printf("############ RANSOMWARE SPAWNED ############\n");
-				printf("# C:\Users\win-test\Desktop\Wannacry \n");
-				printf("# ProcessId=%d ThreadId=%d\n", processInfo.dwProcessId, processInfo.dwThreadId);
-				printf("############################################\n");
+				printf("ProcessId=%d ThreadId=%d\n", processInfo.dwProcessId, processInfo.dwThreadId);
 
 				maliciousProcess = processInfo.dwProcessId;
 				maliciousThread = processInfo.dwThreadId;
 			}
 			else {
 				printf("############ SPAWNED FAIL ############\n");
-				printf("# +---  +---+  |  |    \n");
-				printf("# |--   |   |  |  |    \n");
-				printf("# |     |---|  |  |    \n");
-				printf("# |     |   |  |  |___ \n");
-				printf("######################################\n");
 			}
 
 		}

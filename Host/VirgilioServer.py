@@ -1,5 +1,6 @@
 import socket
 import json
+import sys
 from time import gmtime, strftime
 
 # Reading configuration file -----------
@@ -14,10 +15,13 @@ print("Server host:", host)
 print("Server port:", port)
 
 time = strftime("%Y%m%d_%H%M%S", gmtime());
-name = "data/caronte_" + time + ".csv"
+
+name = "data/" + sys.argv[1] + ".csv"
+print(sys.argv[1])
+print(name)
 
 f = open(name, "a")
-f.write("id;time_start;elapsed_time;kernel;operation;path;size_start;size_gain;thread;process;write_size;entropy;exec_path;exec;gt\n");
+f.write("write;time_start;elapsed_time;mode;flags;path;size_start;size_gain;thread;process;write_size;entropy;exe_path;name;ground_truth\n");
 f.close()
 
 # Add record to db
