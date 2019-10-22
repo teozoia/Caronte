@@ -10,7 +10,7 @@ Signature   = "$Windows NT$"
 Class = "ActivityMonitor"
 ClassGuid = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %ManufacturerName%
-DriverVer = 06/06/2019,17.18.13.936
+DriverVer = 10/22/2019,17.31.28.342
 CatalogFile = Caronte.cat
 
 [DestinationDirs]

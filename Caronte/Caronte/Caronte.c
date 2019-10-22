@@ -170,7 +170,7 @@ CONST FLT_CONTEXT_REGISTRATION ContextNotifications[] = {
 //  This defines what we want to filter with FltMgr
 CONST FLT_REGISTRATION FilterRegistration = {
 
-	sizeof(FLT_REGISTRATION),         //  Size
+	sizeof(FLT_REGISTRATION),           //  Size
 	FLT_REGISTRATION_VERSION,           //  Version
 	0,                                  //  Flags
 
@@ -216,7 +216,7 @@ NTSTATUS CaronteRecNotify(
 ) {
 
 
-	KernPrint("Message recived from Virgilio of size: %lu", inputbufferlength);
+	KernPrint("[Caronte][INFO] - Message recived from Virgilio of size: %lu", inputbufferlength);
 	return STATUS_SUCCESS;
 
 }
@@ -654,22 +654,7 @@ Return Value:
 		//  Copy the memory, we must do this inside the try/except because we
 		//  may be using a users buffer address
 		try {
-			
 			RtlCopyMemory(newBuf, origBuf, writeLen);
-			/*
-			KernPrint("Time=%llu, FILESIZE=%lld, BUF=%p, MDL=%p, OP=%lu, SIZE=%lu, VOLUME=%wZ, TID=%d, PID=%d, Nome=%ws",
-				time,												// Time now (before write)
-				FileSize,											// File size in byte
-				newBuf,												// Write buffer
-				newMdl,												// Mdl
-				Data->Iopb->IrpFlags,								// IRP TYPE code
-				writeLen,											// Write size in byte
-				&volCtx->Name,										// Volume of file
-				PsGetThreadId(Data->Thread),						// ThreadId		
-				PsGetProcessId(PsGetThreadProcess(Data->Thread)),	// Processid
-				FileName											// File name
-				);
-			*/
 
 		} except(EXCEPTION_EXECUTE_HANDLER) {
 
@@ -690,13 +675,12 @@ Return Value:
 
 			record.RecordID = RecordID;
 			record.StartTime = time.QuadPart;
-			record.CompletionTime = 0LL; // dopo
+			record.CompletionTime = 0LL; 
 			record.IsKernel = Data->RequestorMode;
 			record.OperationType = Data->Iopb->IrpFlags;
-			//RtlCopyMemory(record.TargetVolume, &volCtx->Name.Buffer, 2);
 			RtlCopyMemory(record.FilePath, FileName, 1000);
 			record.StartFileSize = FileSize;
-			record.CompletionFileSize = 0LL; // dopo
+			record.CompletionFileSize = 0LL;
 			record.ThreadId = (ULONGLONG)PsGetThreadId(Data->Thread);
 			record.ProcessId = (ULONGLONG)PsGetProcessId(PsGetThreadProcess(Data->Thread));
 
@@ -709,7 +693,6 @@ Return Value:
 			//  We are ready to swap buffers, get a pre2Post context structure.
 			//  We need it to pass the volume context and the allocate memory
 			//  buffer to the post operation callback.
-			KernPrint("[Caronte][INFO] - Before allocation list\n");
 			p2pCtx = ExAllocateFromNPagedLookasideList(&Pre2PostContextList);
 			if (p2pCtx == NULL) {
 				KernPrint("[Caronte][ERR] - %wZ Failed to allocate pre2Post context structure\n",&volCtx->Name);

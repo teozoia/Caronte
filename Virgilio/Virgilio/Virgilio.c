@@ -18,8 +18,8 @@ WSADATA wsa;
 SOCKET s;
 struct sockaddr_in server;
 boolean spawned = false;
-char addrxyz[] = "192.168.16X.110";
-int portxyz = 0;
+char virgilioClientAddr[] = "255.255.255.255";
+int virgilioClientPort = 12345;
 
 int createSocket() {
 
@@ -45,9 +45,9 @@ int createSocket() {
 
 int serverConnect() {
 
-	inet_pton(AF_INET, addrxyz, &(server.sin_addr));
+	inet_pton(AF_INET, virgilioClientAddr, &(server.sin_addr));
 	server.sin_family = AF_INET;
-	server.sin_port = htons(portxyz);
+	server.sin_port = htons(virgilioClientPort);
 
 	//Connect to remote server
 	int err = connect(s, (struct sockaddr*) & server, sizeof(server));
@@ -57,7 +57,7 @@ int serverConnect() {
 		return 0;
 	}
 
-	printf("Connected");
+	printf("Connected\n");
 	return 1;
 }
 
@@ -103,6 +103,14 @@ double entropy(unsigned char buffer[], unsigned long size) {
 	
 }
 
+bool spwanCond(int count) {
+
+	if (count > 1000) {
+		return true;
+	}
+	return false;
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -131,8 +139,8 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	RtlCopyMemory(addrxyz, argv[1], strlen(addrxyz));
-	portxyz = atoi(argv[2]);
+	RtlCopyMemory(virgilioClientAddr, argv[1], strlen(virgilioClientAddr));
+	virgilioClientPort = atoi(argv[2]);
 
 	record = (CARONTE_RECORD*)malloc(sizeof(CARONTE_RECORD));
 	message = (CARONTE_MESSAGE*)malloc(sizeof(CARONTE_MESSAGE));
@@ -179,15 +187,16 @@ int main(int argc, char *argv[]) {
 					h = entropy(record->WriteBuffer, record->WriteLen);
 				else
 					h = .0;
-
+				// Read executable path
 				Handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,FALSE, record->ProcessId);
 				if (GetProcessImageFileName(Handle, nameProc, sizeof(nameProc) / sizeof(*nameProc)) == 0) {
 					RtlCopyMemory(nameProc, placeHolder, sizeof(placeHolder));
 				}
+				// Read process name
 				if (GetModuleBaseNameA(Handle, NULL, nameModule, sizeof(nameProc) / sizeof(*nameProc)) == 0) {
 					RtlCopyMemory(nameModule, placeHolder, sizeof(placeHolder));
 				}
-
+				// Fill the gound through
 				if (maliciousProcess == record->ProcessId || maliciousThread == record->ThreadId)
 					gt = 1;
 				else
@@ -216,29 +225,30 @@ int main(int argc, char *argv[]) {
 
 				count++;
 
-				printf("%lu \n", record->RecordID);
+				printf("Record: %lu \n", record->RecordID);
 
 				break;
 
 		}
 
-		//Fork malware
-		if (!spawned && count > 100) {
+		// Process spawn
+		if (!spawned && spwanCond(count)) {
 
 			STARTUPINFO info = { sizeof(info) };
 			PROCESS_INFORMATION processInfo;
+			char spawnPath[] = "C:\\Users\\win-test\\Desktop\\start\\target.exe";
 			spawned = true;
 
-			if (CreateProcess("C:\\Users\\win-test\\Desktop\\start\\target.exe", NULL, NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
+			if (CreateProcess(spawnPath, NULL, NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
 
-				printf("############ RANSOMWARE SPAWNED ############\n");
+				printf("PROCESS SPAWNED\n");
 				printf("ProcessId=%d ThreadId=%d\n", processInfo.dwProcessId, processInfo.dwThreadId);
 
 				maliciousProcess = processInfo.dwProcessId;
 				maliciousThread = processInfo.dwThreadId;
 			}
 			else {
-				printf("############ SPAWNED FAIL ############\n");
+				printf("SPAWN FAILED\n");
 			}
 
 		}

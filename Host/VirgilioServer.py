@@ -21,7 +21,7 @@ print(sys.argv[1])
 print(name)
 
 f = open(name, "a")
-f.write("write;time_start;elapsed_time;mode;flags;path;size_start;size_gain;thread;process;write_size;entropy;exe_path;name;ground_truth\n");
+f.write("write;time_start;elapsed_time;mode;flags;path;size_start;size_gain;thread;process;write_size;entropy;exe_path;name;gt\n");
 f.close()
 
 # Add record to db
