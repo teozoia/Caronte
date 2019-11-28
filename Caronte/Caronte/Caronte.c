@@ -19,11 +19,6 @@ CARONTE_RECORD record;
 /*************************************************************************
 	Pool Tags
 *************************************************************************/
-
-#define BUFFER_SWAP_TAG     'bdBS'
-#define CONTEXT_TAG         'xcBS'
-#define NAME_TAG            'mnBS'
-#define PRE_2_POST_TAG      'ppBS'
 #define LOG					1
 
 /*************************************************************************

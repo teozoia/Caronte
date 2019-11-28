@@ -1,18 +1,37 @@
-
 # Caronte
 
 > Caron, non ti crucciare: vuolsi così colà dove si puote ciò che si vuole, e più non dimandare.
 
-_Caronte_ is a **Windows filter-driver** that lead poor IRP packets to completion. Caronte comes with _Virgilio_, a  **companion console application** that handle the scraped data.
+_Caronte_ is a **Windows filter-driver** that lead poor IRP packets to completion. Caronte comes with a  **companion console application** that handle the scraped data.
 
-_Virgilio_ is splitted in two component: 
+# Installing
+To install Caronte and all it's component simply download the github repository and double click on .sys driver (_Caronte/Caronte/x64/Debug/Caronte.sys_).
+```
+    git clone https://github.com/teozoia/Caronte.git
+```
+(Don't forget to turn your Windows machine in test mode and disable the driver signature).
 
-* On-vm client application that push scrapped data outside vm.
-* Host-side application that store scrapped data to ransomware-safe database.
+# Enviorment setup and sampling
+Caronte has been developed for working on a target machine running Windows, the host (it can be a real machine or a virtual machine). Also you need an extra machine to recive the data from the driver and securelly store them.
 
-## Enviorment setup
-...
+For sampling you need to start on external machine the python script (Caronte/Host/VirgilioServer.py).
+This operation will start a server on you external machine listening on a port provided on the configuration file (Caronte/Host/setting.conf). The server just started waits for incoming data from Caronte.
+```
+$ python VirgilioServer.py output.csv
+```
 
+Inside the host machine start (with admin privilege) the portable executable Virgilio (Caronte/Virgilio/x64/Release/Virgilio.exe) providing ip address and port for connection.
+```
+$ Virgilio.exe 192.168.0.1 12345
+```
+Virgilio is now connected and waits for Caronte incoming data.
+For start Caronte open up a command line (with admin privilege) and type:
+```
+$ net start Caronte
+```
+Your sampling has been started.
+
+# More about Windows filters
 
 ## Windows I/O model overview 
 
@@ -27,6 +46,7 @@ Every operating system has an implicit or explicit I/O model for handling the fl
 ## Example of I/O request
 
 ![Example of I/O request](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/images/2opendev.png)
+
 1.  The subsystem calls an I/O system service to open a named file.
 
 2.  The I/O manager calls the object manager to look up the named file and to help it resolve any symbolic links for the file object. It also calls the security reference monitor to check that the subsystem has the correct access rights to open that file object.
@@ -64,33 +84,4 @@ A minifilter driver's altitude ensures that the instance of the minifilter drive
 
 The following figure shows a simplified I/O stack with the filter manager and three minifilter drivers.
 
-![enter image description here](https://docs.microsoft.com/en-us/windows-hardware/drivers/ifs/images/filter-manager-architecture-1.gif)
-
-## The model
-
-The model is made of two component, **Caronte**, the minifilter driver that intercepts all IRP packets...
-
-
-
-## Raw data to feature
-
-Introduzione...
-
-### Considering single write (row-only)
-
-- ~~**RequestorMode**: rappresenta il livello di privilegio richiesto dall'applicazione durante la chimata della primitiva `write`. Puó avere valore `0` (kernel mode) oppure `1` (user mode). _Osservando i dati ottenuti da Caronte é risultato che i ransomware eseguono scritture in kernel mode._~~
-- ~~**IRPFlag**: é una bitmask che rappresenta il tipo di operazione da compiere. _Osservando i dati ottenuti da Caronte é risultato che i ransomware eseguono scritture bypassando lo stack IRP quindi solitamente la maschera risulta di valore `0x0`._~~  
-- **Entropy**: l'entropia generata dalle scritture di un ransomware. _Si é osservato che le scritture piú pesanti di un ransomware hanno entropia media, mentre quelle leggere hanno entropia elevata_.
-- ~~**ExceptionType**: estensione estrapolata dal campo _path_ del CSV ottenuto da Caronte. Solitamente i ransomware cifrano un set di file predefinito (ritenuto di valore per l'utente), in questo insieme sono presenti ad esempio PDF, JPG, DOC, XLS, PPT, SVG, PSD, MP3... _É possibile creare un set di estensioni in modo da valutare la riga (scrittura) come benigna/maligna includendo anche l'informazione se il file target é un possibile bersaglio di ransomware._~~
-- ~~**Directory**: individuata dal campo _path_ del CSV ottenuto da Caronte rappresenta la directory assoluta nella quale si trova il file target della scrittura. Solitamente i ransomware concentrano le scritture nelle cartelle utente in modo da massimizzare i file cifrati. _Osservando i dati ottenuti non é possibile stabilire con certezza che un ransomware si concentri sulle cartelle utente ma é possibile osservare che non vengono cifrati file contenuti nelle cartelle di sistema (eg. C:/Windows, C:/Program Files, C:/Program Files(x86)...)._~~ 
-- **UpdateSize**: é la differenza tra la quantitá di file modificata comparata con la grandezza totale del file modificato. Ottenuta tramite `100/start_file_size * (write_size - gain_size) `  é un valore in percentuale sulla grandezza iniziale del file. _Osservando i dati ottenuti tramite Caronte, questa feature é risultata la piú rilevante, in quanto solitamente un'operazione di update non modifica l'intero file, ma solo una parte di esso (spesso anche molto ridotta)._
-
-### Group by
-
-In questa sezione vengono considerate le write raggruppate per scritture eseguite sullo stesso file in un lasso di tempo predefinito.
-
-* **ExtensionChange**: solitamente l'estensione di un file non cambia mai durante tutta la sua permanenza all'interno del filesystem, é difficile pensare come un file con estensione JPG (immagine) possa diventare un file di testo DOC. _Questa feature, ottenuta raggruppando per write dello stesso processo in un dato periodo di tempo, puó indicare con alta probabilitá la presenta di un programma maligno di cifratura (eg. documento.pdf --> documento.pdf.ENCRYPTED)._ 
-* **TargetDirectory**: é possibile listare tutte le directory in cui un processo ha eseguito delle scritture, se queste spaziano in tutto il disco si avrá una alta probabilitá di aver incontrato un ransomware.
-* **WriteRatio**: in un dato lasso di tempo con che frequenza un processo ha compiuto operazioni di write.
-* **CpuUsage**: utilizzo in percentuale della CPU in un determinato lasso di tempo (i processi di encryption sono CPU intensive).
-* **ReadBeforeEnc**: per cifrare un file é prima indispensabile leggerlo interamente (anche a pezzi, ma deve essere caricato tutto in memoria).
+![Filter manager architecture](static/img.gif)
